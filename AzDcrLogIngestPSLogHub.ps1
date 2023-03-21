@@ -1,5 +1,5 @@
 ﻿#Requires -RunAsAdministrator
-#Requires -Version 5.0
+#Requires -Version 5.1
 
 <#
     .NAME
@@ -23,7 +23,7 @@
     Licensed under the MIT license
 
     .PROJECTURI
-    n/a (private)
+    https://github.com/KnudsenMorten/AzLogDcrIngestPSLogHub
 
     .EXAMPLE
 
@@ -41,7 +41,7 @@ param(
      )
 
 
-$LogFile = [System.Environment]::GetEnvironmentVariable('TEMP','Machine') + "\ClientInspector.txt"
+$LogFile = [System.Environment]::GetEnvironmentVariable('TEMP','Machine') + "\AzLogDcrIngestPSLogHub.txt"
 Try
     {
         Stop-Transcript   # if running
