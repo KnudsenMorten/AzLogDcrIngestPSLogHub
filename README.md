@@ -2,7 +2,9 @@
  Solution that acts as an intermediate hub for "no internet connected" endpoints or incompliant endpoints, where you will be sending data using Azure Pipeline/Log Ingestion API
 
 ## Quick links
-[Video of solution](https://youtu.be/OLN2zCMxf1w)
+[Video of "log-hub" solution (2 min)](https://youtu.be/OLN2zCMxf1w)
+[Learn more about AzLogDcrPS powershell module](https://github.com/KnudsenMorten/AzLogDcrIngestPS)
+[ClientInspector - cool solution using AzLogDcrIngestPS module](https://github.com/KnudsenMorten/ClientInspectorV2)
 
 
 # Flow highlevel
