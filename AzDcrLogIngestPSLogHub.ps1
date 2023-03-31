@@ -1,31 +1,21 @@
 ﻿#Requires -RunAsAdministrator
-#Requires -Version 5.1
+#Requires -Version 5.0
 
 <#
     .NAME
-    AzLogDcrIngestPSLogHub
+    AzLogDcrIngestPS loghub
 
     .SYNOPSIS
-    Normally, REST API endpoints sends directly to Azure Pipeline via DCEs/DCRs/Log Ingestion API
-    If you have endpoints for example servers which are not connected to the internet - or
-    they are not secured with TLS 1.2, then you can't send the data.
     
-    AzLogDcrIngestPSLogHub acts as an intermediate to handle this flow.
-    Server sends JSON-file to specific UNC-path (LogHubPath).
-    
-    On the Log-hub server, there is a job (this script), which is scanning the LogHubPath for new files (every 10 sec)
-    It will process the files and send it to the correct DCE – with DCR information – and if succesfully, delete the file.
   
     .AUTHOR
     Morten Knudsen, Microsoft MVP - https://mortenknudsen.net
 
     .LICENSE
-    Licensed under the MIT license
+    Licensed under the MIT license.
 
     .PROJECTURI
-    https://github.com/KnudsenMorten/AzLogDcrIngestPSLogHub
-
-    .EXAMPLE
+    n/a (private)
 
     .WARRANTY
     Use at your own risk, no warranty given!
@@ -41,7 +31,7 @@ param(
      )
 
 
-$LogFile = [System.Environment]::GetEnvironmentVariable('TEMP','Machine') + "\AzLogDcrIngestPSLogHub.txt"
+$LogFile = [System.Environment]::GetEnvironmentVariable('TEMP','Machine') + "\ClientInspector.txt"
 Try
     {
         Stop-Transcript   # if running
@@ -53,7 +43,7 @@ Catch
 
 
 Write-Output ""
-Write-Output "AzLogDcrIngestPSLogHub | Upload of logdata for no-internet support & legacy support"
+Write-Output "AzLogDcrIngestPS loghub | Upload of logdata for no-internet support & legacy support"
 Write-Output "Developed by Morten Knudsen, Microsoft MVP"
 Write-Output ""
   
@@ -63,37 +53,40 @@ Write-Output ""
 
 <# ----- onboarding lines ----- BEGIN #>
 
-    $TenantId                                   = "" 
-    $LogIngestAppId                             = "" 
-    $LogIngestAppSecret                         = "" 
+$TenantId                                   = "" 
+$LogIngestAppId                             = "" 
+$LogIngestAppSecret                         = "" 
 
-    $DceName                                    = "" 
-    $LogAnalyticsWorkspaceResourceId            = "" 
-    $AzDcrResourceGroup                         = ""
-    $AzDcrPrefix                                = "" 
-    $AzDcrSetLogIngestApiAppPermissionsDcrLevel = $false
-    $AzDcrLogIngestServicePrincipalObjectId     = "" 
-    $AzLogDcrTableCreateFromReferenceMachine    = @()
-    $AzLogDcrTableCreateFromAnyMachine          = $false
+$DceName                                    = "" 
+$LogAnalyticsWorkspaceResourceId            = "" 
+$AzDcrResourceGroup                         = ""
+$AzDcrPrefix                                = "srv" 
+$AzDcrSetLogIngestApiAppPermissionsDcrLevel = $false
+$AzDcrLogIngestServicePrincipalObjectId     = "" 
+$AzLogDcrTableCreateFromReferenceMachine    = @()
+$AzLogDcrTableCreateFromAnyMachine          = $true
 
-    $LogHubUploadPath                           = "\\<servername>\logupload$\INBOUND"
-    $LogHubPsModulePath                         = "\\<servername>\logupload$\MODULES"
+$LogHubUploadPath                           = "\\server\loghub$\INBOUND"
+$LogHubPsModulePath                         = "\\server\loghub$\MODULES"
+$LogHubLogsPath                             = "\\server\loghub$\LOGS"
+
+$Verbose                                    = $true
 
 
 <#  ----- onboading lines -----  END  #>
 
-    # script run mode - normal or verbose
-    If ($psBoundParameters['verbose'] -eq $true)
-        {
-            Write-Output "Verbose mode ON"
-            $global:Verbose = $true
-            $VerbosePreference = "Continue"  # Stop, Inquire, Continue, SilentlyContinue
-        }
-    Else
-        {
-            $global:Verbose = $false
-            $VerbosePreference = "SilentlyContinue"  # Stop, Inquire, Continue, SilentlyContinue
-        }
+# script run mode - normal or verbose
+If ( ($psBoundParameters['verbose'] -eq $true) -or ($verbose -eq $true) )
+    {
+        Write-Output "Verbose mode ON"
+        $global:Verbose = $true
+        $VerbosePreference = "Continue"  # Stop, Inquire, Continue, SilentlyContinue
+    }
+Else
+    {
+        $global:Verbose = $false
+        $VerbosePreference = "SilentlyContinue"  # Stop, Inquire, Continue, SilentlyContinue
+    }
 
 
 ############################################################################################################################################
@@ -226,7 +219,7 @@ Write-Output ""
 
 
 ############################################################################################################################################
-# POWERSHELL CHECK
+# MAIN PROGRAM
 ############################################################################################################################################
 
     #-------------------------------------------------------------------------------------------------------------
@@ -280,15 +273,11 @@ Write-Output ""
 
 
 ###############################################################
-# MAIN PROGRAM
+# Loop
 ###############################################################
 
     # verbose
         $verbose = $false
-
-    # We force script to use existing structure and NOT trying to adjust. Sometimes data structure can be garbage !!
-        $AzLogDcrTableCreateFromReferenceMachine    = @()
-        $AzLogDcrTableCreateFromAnyMachine          = $false
 
     # create folders
         MD $LogHubPsModulePath -Force | Out-Null -ErrorAction SilentlyContinue
@@ -303,15 +292,15 @@ Write-Output ""
         Write-Output ""
 
         # delete existing file if found to download newest version
-        If (Test-Path "$($LogHubPsModulePath)\AzLogDcrIngestPS.psm1")
+        If (Test-Path "$($LogHubPsModulePath)\AzLogDcrIngestPS\AzLogDcrIngestPS.psm1")
             {
-                Remove-Item -Path "$($LogHubPsModulePath)\AzLogDcrIngestPS.psm1"
+                Remove-Item -Path "$($LogHubPsModulePath)\AzLogDcrIngestPS\AzLogDcrIngestPS.psm1"
             }
 
         Start-Sleep -Seconds 2
 
         # download newest version
-        $Download = (New-Object System.Net.WebClient).DownloadFile("https://raw.githubusercontent.com/KnudsenMorten/AzLogDcrIngestPS/main/AzLogDcrIngestPS.psm1", "$($LogHubPsModulePath)\AzLogDcrIngestPS.psm1")
+        $Download = (New-Object System.Net.WebClient).DownloadFile("https://raw.githubusercontent.com/KnudsenMorten/AzLogDcrIngestPS/main/AzLogDcrIngestPS.psm1", "$($LogHubPsModulePath)\AzLogDcrIngestPS\AzLogDcrIngestPS.psm1")
                     
     # building DCR/DCE details
         # building global variable with all DCEs, which can be viewed by Log Ingestion app
@@ -375,15 +364,15 @@ Write-Output ""
                                                     $Schema = Get-ObjectSchemaAsHash -Data $Data -ReturnType Table -Verbose:$Verbose
 
                                                     CreateUpdate-AzLogAnalyticsCustomLogTableDcr -AzLogWorkspaceResourceId $AzLogWorkspaceResourceId -SchemaSourceObject $Schema -TableName $TableName `
-                                                                                                    -AzAppId $AzAppId -AzAppSecret $AzAppSecret -TenantId $TenantId -Verbose:$Verbose 
+                                                                                                 -AzAppId $AzAppId -AzAppSecret $AzAppSecret -TenantId $TenantId -Verbose:$Verbose 
 
 
                                                     # build schema to be used for DCR
                                                     $Schema = Get-ObjectSchemaAsHash -Data $Data -ReturnType DCR
 
                                                     CreateUpdate-AzDataCollectionRuleLogIngestCustomLog -AzLogWorkspaceResourceId $AzLogWorkspaceResourceId -SchemaSourceObject $Schema `
-                                                                                                        -DceName $DceName -DcrName $DcrName -DcrResourceGroup $DcrResourceGroup -TableName $TableName `
-                                                                                                        -LogIngestServicePricipleObjectId $LogIngestServicePricipleObjectId `
+                                                                                                        -DceName $DceName -DcrName $DcrName -DcrResourceGroup $AzDcrResourceGroup -TableName $TableName `
+                                                                                                        -LogIngestServicePricipleObjectId $AzDcrLogIngestServicePrincipalObjectId `
                                                                                                         -AzDcrSetLogIngestApiAppPermissionsDcrLevel $AzDcrSetLogIngestApiAppPermissionsDcrLevel `
                                                                                                         -AzAppId $AzAppId -AzAppSecret $AzAppSecret -TenantId $TenantId -Verbose:$Verbose
                                                 }
@@ -394,12 +383,13 @@ Write-Output ""
                                 #-----------------------------------------------------------------------------------------------
 
                                     $AzDcrDceDetails = Get-AzDcrDceDetails -DcrName $DcrName -DceName $DceName `
-                                                                            -AzAppId $AzAppId -AzAppSecret $AzAppSecret -TenantId $TenantId -Verbose:$Verbose
+                                                                           -AzAppId $AzAppId -AzAppSecret $AzAppSecret -TenantId $TenantId -Verbose:$Verbose
 
                                     $Result = Post-AzLogAnalyticsLogIngestCustomLogDcrDce  -DceUri $AzDcrDceDetails[2] -DcrImmutableId $AzDcrDceDetails[6] -TableName $TableName `
-                                                                                            -DcrStream $AzDcrDceDetails[7] -Data $Data -BatchAmount $BatchAmount `
-                                                                                            -AzAppId $AzAppId -AzAppSecret $AzAppSecret -TenantId $TenantId -Verbose:$Verbose
-                                    If ($Result.StatusCode -eq "204") # 204 = succes
+                                                                                           -DcrStream $AzDcrDceDetails[7] -Data $Data -BatchAmount $BatchAmount `
+                                                                                           -AzAppId $AzAppId -AzAppSecret $AzAppSecret -TenantId $TenantId -Verbose:$Verbose
+                                    
+                                    If ($Result.StatusCode -eq "204") # 204 = success
                                         {
                                             # Delete file from inbound as it has been uploaded sucessfully !
                                             Write-Output ""
